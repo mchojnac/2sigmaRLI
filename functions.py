@@ -4,7 +4,7 @@ import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import matplotlib.pyplot as plt
 import matplotlib
 import math
-import re 
+import re
 
 def AddFeatures(df,listoffeatures):
     tabel=np.zeros((len(df),len(listoffeatures)),dtype=int)
@@ -12,7 +12,7 @@ def AddFeatures(df,listoffeatures):
         for j_id,j in enumerate(listoffeatures):
             if ", ".join(i).find(j)>=0:
                 tabel[i_id][j_id]=1
-    df_test=pd.DataFrame(tabel,columns=listoffeatures,index=df.index)      
+    df_test=pd.DataFrame(tabel,columns=listoffeatures,index=df.index)
     return pd.concat([df,df_test], axis=1)
 
 def Filter(df,listoffeatures,clean=True):
@@ -22,7 +22,7 @@ def Filter(df,listoffeatures,clean=True):
     for i in range(len(df)):
         df['lenf'].values[i]=len(df['features'].values[i])
         df['ifphoto'].values[i]=len(df['photos'].values[i])
-        df['lendescription'].values[i] = len(df['description'].values[i])  
+        df['lendescription'].values[i] = len(df['description'].values[i])
     if len(listoffeatures)>0:
         df,listoffeatures=GetFeatures(df,listoffeatures)
         df['add'] = df[listoffeatures].sum(axis=1)
@@ -32,7 +32,7 @@ def Filter(df,listoffeatures,clean=True):
         df=df.loc[df['bathrooms']>0]
         df=df.loc[df['bathrooms']<=2]
         df=df.loc[df['ifphoto']>0]
-    return df        
+    return df
 
 def GetListofFeatures(df):
     allf=dict()
@@ -71,11 +71,11 @@ def PlotOneFeatureTrain(train_df,title,limits):
     error2=[math.sqrt(pr2[0][i]*(pr1[0][i]+pr3[0][i]))/((pr1[0][i]+pr2[0][i]+pr3[0][i])*math.sqrt(pr1[0][i]+pr2[0][i]+pr3[0][i])) for i in  range(len(pr1[0]))]
     error3=[math.sqrt(pr3[0][i]*(pr2[0][i]+pr1[0][i]))/((pr1[0][i]+pr2[0][i]+pr3[0][i])*math.sqrt(pr1[0][i]+pr2[0][i]+pr3[0][i])) for i in  range(len(pr1[0]))]
     nor=sum(pr1[0])+sum(pr2[0])+sum(pr3[0])
-    
+
     based1=[sum(pr1[0])/nor for i in  range(len(pr1[0]))]
     based2=[sum(pr2[0])/nor for i in  range(len(pr1[0]))]
     based3=[sum(pr3[0])/nor for i in  range(len(pr1[0]))]
-    
+
     ax.errorbar(x=bins,y=pr1[0]/(pr1[0]+pr2[0]+pr3[0]),yerr=error1,color="b",marker='o')
     ax.errorbar(x=bins,y=pr2[0]/(pr1[0]+pr2[0]+pr3[0]),yerr=error2,color="r",marker='o')
     ax.errorbar(x=bins,y=pr3[0]/(pr1[0]+pr2[0]+pr3[0]),yerr=error3,color="g",linestyle='dotted',marker='o')
@@ -96,7 +96,7 @@ def GetFeautresStats(train_df,fract=0.01):
     nor=len(train_df)
     for iv in sorted_allf:
         if iv[1]/nor<fract:
-            break  
+            break
         labels.append(iv[0])
         train_df_f=train_df[[iv[0] in x for x in train_df['features']]]
         norf=len(train_df_f)
@@ -124,9 +124,9 @@ def PlotFeautresfromTrain(train_df):
     labels,v = GetFeautresStats(train_df)
     nor=len(train_df)
     for iv in range(len(v)):
-         
-        norf1=v[iv][0]    
-        norf2=v[iv][1]   
+
+        norf1=v[iv][0]
+        norf2=v[iv][1]
         norf3=v[iv][2]
         norf=v[iv][3]
         v1.append(norf1)
@@ -141,13 +141,13 @@ def PlotFeautresfromTrain(train_df):
         error1.append(math.sqrt(norf1/norf*(1.0-norf1/norf))/math.sqrt(norf))
         error2.append(math.sqrt(norf2/norf*(1.0-norf2/norf))/math.sqrt(norf))
         error3.append(math.sqrt(norf3/norf*(1.0-norf3/norf))/math.sqrt(norf))
-    fig, ax = plt.subplots()                 
+    fig, ax = plt.subplots()
     ax.errorbar(x=range(len(v1)),y=v1,yerr=error1,color="g",marker='o',linestyle='None')
     ax.errorbar(x=range(len(v2)),y=v2,yerr=error2,color="r",marker='o',linestyle='None')
     ax.errorbar(x=range(len(v3)),y=v3,yerr=error3,color="b",marker='o',linestyle='None')
     ax.errorbar(x=range(len(based1)),y=based1,color="g",linestyle='dotted')
     ax.errorbar(x=range(len(based2)),y=based2,color="r",linestyle='dotted')
-    ax.errorbar(x=range(len(based3)),y=based3,color="b",linestyle='dotted')                      
+    ax.errorbar(x=range(len(based3)),y=based3,color="b",linestyle='dotted')
     #ax.set_title(columnname)
     plt.xticks(range(len(v1)),labels,rotation='vertical')
     plt.show()
@@ -169,7 +169,7 @@ def GetFractionsforIDStreet(train_df,columnname,cut=120,userest=True):
         rest=rest.loc[rest[columnname]!=iv[0]]
         frac=[1.0/iv[1],1.0/iv[1],1.0/iv[1],iv[1]]
         for index,freq in small.groupby('interest_level'):
-            frac[index]=len(freq)*frac[index]           
+            frac[index]=len(freq)*frac[index]
         final.append(frac)
     labels.append('rest')
     lrest=len(rest)
@@ -181,7 +181,7 @@ def GetFractionsforIDStreet(train_df,columnname,cut=120,userest=True):
                 frac[index]=len(freq)*frac[index]
     else:
         frac=[0.0,0.0,0.0,lrest]
-    final.append(frac) 
+    final.append(frac)
     final= np.array(final)
     return final,labels
 
@@ -204,16 +204,16 @@ def GetStatofSMIinTrain (columnname,train_df,cut=120):
     final,labels=GetFractionsforIDStreet(train_df,columnname,cut)
 
     fig, ax = plt.subplots()
-    
+
     nor=len(train_df)
     nor1=len(train_df.loc[train_df['interest_level']==2])
     nor2=len(train_df.loc[train_df['interest_level']==1])
     nor3=len(train_df.loc[train_df['interest_level']==0])
-    
+
     based1=[nor3/nor for i in  range(len(final[:,0]))]
     based2=[nor2/nor for i in  range(len(final[:,0]))]
     based3=[nor1/nor for i in  range(len(final[:,0]))]
-    
+
     error1=[math.sqrt(final[i,0]*(1.0-final[i,0]))/math.sqrt(final[i,3]) for i in  range(len(final[:,0]))]
     error2=[math.sqrt(final[i,1]*(1.0-final[i,1]))/math.sqrt(final[i,3]) for i in  range(len(final[:,1]))]
     error3=[math.sqrt(final[i,2]*(1.0-final[i,2]))/math.sqrt(final[i,3]) for i in  range(len(final[:,2]))]
@@ -224,7 +224,7 @@ def GetStatofSMIinTrain (columnname,train_df,cut=120):
     ax.errorbar(x=range(len(final[:,2])),y=final[:,2],yerr=error3,color="g",marker='o',linestyle='None')
     ax.errorbar(x=range(len(final[:,0])),y=based1,color="b",linestyle='dotted')
     ax.errorbar(x=range(len(final[:,1])),y=based2,color="r",linestyle='dotted')
-    ax.errorbar(x=range(len(final[:,2])),y=based3,color="g",linestyle='dotted')                      
+    ax.errorbar(x=range(len(final[:,2])),y=based3,color="g",linestyle='dotted')
     ax.set_title(columnname)
     plt.xticks(range(len(final[:,2])),labels,rotation='vertical')
     plt.show()
@@ -232,7 +232,7 @@ def GetStatofSMIinTrain (columnname,train_df,cut=120):
     plt.plot(final[:,3]/nor)
     ax2.set_yscale('log')
     plt.show()
-    
+
    #plt.plot(final[:,0],'--g')
    # plt.plot(final[:,1],'--r')
    # plt.plot(final[:,2],'--b')
@@ -284,16 +284,16 @@ def CompareTrainTest(train,test,title,limits):
         if (i1>0.0 and i2>0.0):
             results.append(i1/i2)
         else:
-            results.append(0.0)    
+            results.append(0.0)
     plt.plot(bins,results)
-    
+
 def Std(df,columns):
     for i in columns:
         mean=df[i].mean();
         std=df[i].std()+1e-8
         df[i]=(df[i]-mean)/std
     return
-    
+
 def AddColumnsLMHIDStreet(df_train,column,values) :
     df_train["{}_L".format(column)]=0.0
     df_train["{}_M".format(column)]=0.0
@@ -307,7 +307,7 @@ def AddColumnsLMHIDStreet(df_train,column,values) :
             df_train["{}_L".format(column)].values[i]=values['rest'][0]
             df_train["{}_M".format(column)].values[i]=values['rest'][1]
             df_train["{}_H".format(column)].values[i]=values['rest'][2]
-    return  df_train 
+    return  df_train
 
 def AddFeatureColumns(df_train,labels,values) :
     df_train["features_L"]=0.0
@@ -326,7 +326,7 @@ def AddFeatureColumns(df_train,labels,values) :
                 m=m+values[ii][1]
                 l=l+values[ii][2]
                 tmp=tmp+1.0
-        if tmp>0.0:        
+        if tmp>0.0:
             df_train["features_L"].values[i]=l/tmp
             df_train["features_M"].values[i]=m/tmp
             df_train["features_H"].values[i]=h/tmp
@@ -341,8 +341,8 @@ def GetFeatures(df,listoffeatures):
     listoffeatures2=list()
     for i in listoffeatures:
         listoffeatures2.append(i.replace(" ",""))
-    df_test=pd.DataFrame(tabel,columns=listoffeatures2,index=df.index)     
-    #return  pd.concat([df,df_test], axis=1) 
+    df_test=pd.DataFrame(tabel,columns=listoffeatures2,index=df.index)
+    #return  pd.concat([df,df_test], axis=1)
     return pd.concat([df,df_test], axis=1),listoffeatures2
 
 def testprediction(Y,Xprob):
@@ -351,7 +351,7 @@ def testprediction(Y,Xprob):
         return 100
     for i in range(len(Y)):
         testv+=math.log2(Xprob[i,np.argmax(Y[i])])
-    return testv/len(Xprob) 
+    return testv/len(Xprob)
 
 def CreateSDN(df_train):
     df_train['street_address_new'] = df_train["street_address"].apply(lambda x: ' '.join(x.split()).lower())
@@ -379,9 +379,9 @@ def CreateSDN(df_train):
                 df_train['street_address_new'].values[ii]=i[:pos+len(j)]
                 change=True
                 break
-        if change==False:        
+        if change==False:
             df_train['street_address_new'].values[ii]=i+" st"
-    
+
     df_train['street_address_new'] = df_train["street_address_new"].apply(lambda x: x.replace("street","st"))
     df_train['street_address_new'] = df_train["street_address_new"].apply(lambda x: x.replace(".",""))
     df_train['street_address_new'] = df_train["street_address_new"].apply(lambda x: x.replace(",",""))
@@ -423,10 +423,10 @@ def GetDict(test):
         m=value.find(" ")
         p[value]=i
         k[i]=value[m+1:]
-        
+
     return k,p
 
-def CleanIDstreet(df_train,train,train2):    
+def CleanIDstreet(df_train,train,train2):
     for i in range(len(df_train)):
         #if df_train['building_id'].values[i]=='0':
         if df_train['street_address_new'].values[i] in train2.keys():
@@ -434,4 +434,9 @@ def CleanIDstreet(df_train,train,train2):
         if df_train['building_id_new'].values[i]!='0':
             if df_train['building_id_new'].values[i] in train.keys():
                 df_train['street_address_new_new'].values[i]=train[df_train['building_id_new'].values[i]]
-    return  df_train  
+    return  df_train
+
+def AddColumns(train,labels,column):
+    for il,label in enumerate(labels):
+        if len(label)>1: # chek not zero
+            train["{}_{}".format(column,il)]= train[column].apply(lambda x: 1 if x==label else 0)

@@ -55,12 +55,18 @@ param['seed'] = 21
 param['nthread'] = 8
 #param['lambda']=1.5
 #param ['alpha']=0.4 #[default=0]
-num_rounds = 2800
+num_rounds = 3500
 
 maxstat={}
 maxstat["manager_id"]=30
-maxstat["building_id"]=30
-maxstat["street"]=30
+maxstat["building_id_new"]=30
+maxstat["street_address_new_new"]=30
+
+howtouseID={} # 0= H-M-L fractions 1 columns with 0-1 ,2 =nothing
+
+howtouseID['manager_id']=1
+howtouseID['building_id_new']=1
+howtouseID['street_address_new_new']=1
 
 withrest=False
 
@@ -112,20 +118,19 @@ X_test=CleanIDstreet(X_test,trainBtoA,trainAtoB)
 X_test=CleanIDstreet(X_test,testBtoA,testAtoB)
 print("step4")
 
-
 print("Normalizing high cordiality data...")
-finalm,labelsm=GetFractionsforIDStreet(X_train,'manager_id',maxstat['manager_id'],withrest) # adding fasle 40 -> 60
-finals,labelss=GetFractionsforIDStreet(X_train,'street_address_new_new',maxstat['street'],withrest)
-finalb,labelsb=GetFractionsforIDStreet(X_train,'building_id_new',maxstat['building_id'],withrest)
-finalm=dict(zip(labelsm,finalm))
-finals=dict(zip(labelss,finals))
-finalb=dict(zip(labelsb,finalb))
-X_train=AddColumnsLMHIDStreet(X_train,'manager_id',finalm)
-X_train=AddColumnsLMHIDStreet(X_train,'street_address_new_new',finals)
-X_train=AddColumnsLMHIDStreet(X_train,'building_id_new',finalb)
-X_test=AddColumnsLMHIDStreet(X_test,'manager_id',finalm)
-X_test=AddColumnsLMHIDStreet(X_test,'street_address_new_new',finals)
-X_test=AddColumnsLMHIDStreet(X_test,'building_id_new',finalb)
+for i in ['manager_id','street_address_new_new','building_id_new']:
+    final,labels=GetFractionsforIDStreet(X_train,i,maxstat[i],withrest)
+    if howtouseID[i]==1:
+        AddColumns(X_train,labels,i)
+        AddColumns(X_test,labels,i)
+    elif howtouseID[i]==0:
+        final=dict(zip(labels,final))
+        AddColumnsLMHIDStreet(X_train,i,final)
+        AddColumnsLMHIDStreet(X_test,i,final)
+    else:
+        continue
+
 
 
 ids=X_test['listing_id'].ravel()
@@ -158,7 +163,7 @@ sub.to_csv("./test/test{}timestamp{}.csv".format(filename,timestamp), index = Fa
 
 
 
-plt.rcParams["figure.figsize"] = [10,10]
+plt.rcParams["figure.figsize"] = [40,40]
 xgb.plot_importance(clf)
 plt.savefig("./test/importance{}timestamp{}.png".format(filename,timestamp))
 
@@ -188,10 +193,12 @@ for i in columns_for_remove:
 
 file_object.write("---------------Others------------------\n")
 for i in sorted(maxstat.keys()):
-    file_object.write("par {} = {} \n".format(i,maxstat[i]))
+    file_object.write("par n cut {} = {} \n".format(i,maxstat[i]))
+for i in sorted(howtouseID.keys()):
+    file_object.write("par what {} = {} \n".format(i,howtouseID[i]))
 file_object.write("num_rounds= {} \n".format(num_rounds))
 file_object.write("withrest= {} \n".format(withrest))
 file_object.write("countvectorizer_ max_features= {} \n".format(countvectorizer_max_features))
-
+file_object.write("Ncolumns {} {} \n".format(len(X_train.columns),len(X_test.columns)))
 
 file_object.close()

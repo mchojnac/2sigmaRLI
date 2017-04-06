@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import math
 import re
+import sys
 
 def AddFeatures(df,listoffeatures):
     tabel=np.zeros((len(df),len(listoffeatures)),dtype=int)
@@ -160,6 +161,7 @@ def GetFractionsforIDStreet(train_df,columnname,cut=120,userest=True):
     sorted_alls,alls = GetStreetMangerBulding (train_df,columnname)
     final=list()
     rest=train_df
+    print(columnname)
     for iv in sorted_alls:
         if iv[1]<cut:
             break
@@ -440,3 +442,42 @@ def AddColumns(train,labels,column):
     for il,label in enumerate(labels):
         if len(label)>1: # chek not zero
             train["{}_{}".format(column,il)]= train[column].apply(lambda x: 1 if x==label else 0)
+
+
+def ReadIn(filename,allparams):
+    with open(filename, 'r') as f:
+        f.readline()
+        for line in f:
+            line=line.replace("\n","")
+            if line[0]=="#":
+                print(line)
+            elif line[0]=="$":
+                words=line.split(" ")
+                if (words[1] in allparams.keys()):
+                    allparams[words[1]]=words[2:]
+            else:
+                words=line.split(" ")
+                if len(words)==2:
+                    names=words[0].split("%")
+                    if len(names)==2:
+                        if (names[0] in allparams.keys()) and (names[1] in allparams[names[0]].keys()):
+                            allparams[names[0]][names[1]]=type(allparams[names[0]][names[1]])(words[1])
+    return allparams
+
+def WriteSettings(filename,allparams,columns=None):
+    file_object  = open(filename, "w")
+    for i in sorted(allparams.keys()):
+        if i=='columns_for_remove':
+            file_object.write("$ columns_for_remove")
+            for j in allparams[i]:
+                file_object.write(" {}".format(j))
+            file_object.write("\n")
+        else:
+            for j in sorted(allparams[i].keys()):
+                file_object.write("{}%{} {}\n".format(i,j,allparams[i][j]))
+    if len(columns)>0:
+        file_object.write("#")
+        for i in columns:
+            file_object.write(" {}".format(i))
+        file_object.write("\n")
+    file_object.close()

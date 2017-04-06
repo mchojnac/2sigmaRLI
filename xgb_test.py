@@ -165,12 +165,13 @@ def transform_data(X,global_prob,feature_transform):
     X['created_wd'] = ((X['created_weekday'] != 5) & (X['created_weekday'] != 6))
     X['created'] = X['created'].map(lambda x: float((x - dt.datetime(1899, 12, 30)).days) + (float((x - dt.datetime(1899, 12, 30)).seconds) / 86400))
 
-    X['low'] = 0
-    X.loc[X['interest_level'] == 0, 'low'] = 1
-    X['medium'] = 0
-    X.loc[X['interest_level'] == 1, 'medium'] = 1
-    X['high'] = 0
-    X.loc[X['interest_level'] == 2, 'high'] = 1
+    if 'interest_level' in X.columns:
+        X['low'] = 0
+        X.loc[X['interest_level'] == 0, 'low'] = 1
+        X['medium'] = 0
+        X.loc[X['interest_level'] == 1, 'medium'] = 1
+        X['high'] = 0
+        X.loc[X['interest_level'] == 2, 'high'] = 1
 
 
     X['pred0_low'] = global_prob[0]
@@ -299,7 +300,7 @@ def RunXGB(X_train,X_test,settings,filename,timestamp):
     file_imp  = open("./test/importance{}timestamp{}.txt".format(filename,timestamp), "w")
     imp=clf.get_fscore()
     sorted_x = sorted(imp.items(), key=operator.itemgetter(1), reverse=True)
-    for i in sorted(sorted_x):
+    for i in sorted_x:
         file_imp.write("{}={}\n".format(i[0],i[1]))
     file_imp.close()
 

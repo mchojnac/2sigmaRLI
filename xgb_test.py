@@ -60,7 +60,6 @@ def InitSettings():
     others["withrest"]=True
     others["addlabelsasint"]=False
     others["clean_street_building_ids"]=False
-
     alllparams=dict()
     alllparams['xgb']=param
     alllparams['maxstat']=maxstat
@@ -209,10 +208,10 @@ def LoadData(filename,settings):
 
 
     feature_transform.fit(list(X_train['features']) + list(X_test['features']))
-
     print("Starting transformations")
     X_train = transform_data(X_train,global_prob,feature_transform)
     X_test = transform_data(X_test,global_prob,feature_transform)
+
 
     if settings['others']["clean_street_building_ids"]:
         X_train=CreateSDN(X_train)

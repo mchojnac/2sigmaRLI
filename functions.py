@@ -461,7 +461,15 @@ def ReadIn(filename,allparams):
                     names=words[0].split("%")
                     if len(names)==2:
                         if (names[0] in allparams.keys()) and (names[1] in allparams[names[0]].keys()):
-                            allparams[names[0]][names[1]]=type(allparams[names[0]][names[1]])(words[1])
+                            if type(allparams[names[0]][names[1]])==str:
+                                allparams[names[0]][names[1]]=str(words[1])
+                            if type(allparams[names[0]][names[1]])==int:
+                                allparams[names[0]][names[1]]=int(words[1])
+                            if type(allparams[names[0]][names[1]])==bool:
+                                if words[1]=='True':
+                                    allparams[names[0]][names[1]]=True
+                                else:
+                                    allparams[names[0]][names[1]]=False
     return allparams
 
 def WriteSettings(filename,allparams,columns=None):

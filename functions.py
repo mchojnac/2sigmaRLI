@@ -257,6 +257,8 @@ def LoadTest(name="./test.json"):
     if "interest_level" in df_test.columns:
         maping_intrest={'low':0,'medium':1,'high':2}
         df_test['interest_level'] =df_test['interest_level'].map(maping_intrest)
+    else:
+        df_test['interest_level'] = -1
     df_test['features'] = df_test["features"].apply(lambda x: ["_".join(i.lower().split(" ")) for i in x])
     df_test['time']=df_test['created']#.replace(" ","").replace("-","").replace(":","")[3:])
     start=pd.Timestamp('2016-04-01 22:23:31')
@@ -445,31 +447,32 @@ def AddColumns(train,labels,column):
 
 
 def ReadIn(filename,allparams):
-    with open(filename, 'r') as f:
-        f.readline()
-        for line in f:
-            line=line.replace("\n","")
-            if line[0]=="#":
-                print(line)
-            elif line[0]=="$":
-                words=line.split(" ")
-                if (words[1] in allparams.keys()):
-                    allparams[words[1]]=words[2:]
-            else:
-                words=line.split(" ")
-                if len(words)==2:
-                    names=words[0].split("%")
-                    if len(names)==2:
-                        if (names[0] in allparams.keys()) and (names[1] in allparams[names[0]].keys()):
-                            if type(allparams[names[0]][names[1]])==str:
-                                allparams[names[0]][names[1]]=str(words[1])
-                            if type(allparams[names[0]][names[1]])==int:
-                                allparams[names[0]][names[1]]=int(words[1])
-                            if type(allparams[names[0]][names[1]])==bool:
-                                if words[1]=='True':
-                                    allparams[names[0]][names[1]]=True
-                                else:
-                                    allparams[names[0]][names[1]]=False
+    f=open(filename, 'r')
+    for line in f.readlines():
+        line=line.replace("\n","")
+        if line[0]=="#":
+            continue
+        elif line[0]=="$":
+            words=line.split(" ")
+            if (words[1] in allparams.keys()):
+                allparams[words[1]]=words[2:]
+        else:
+            words=line.split(" ")
+            if len(words)==2:
+                names=words[0].split("%")
+                if len(names)==2:
+                    if (names[0] in allparams.keys()) and (names[1] in allparams[names[0]].keys()):
+                        if type(allparams[names[0]][names[1]])==str:
+                            allparams[names[0]][names[1]]=str(words[1])
+                        if type(allparams[names[0]][names[1]])==float:
+                            allparams[names[0]][names[1]]=float(words[1])
+                        if type(allparams[names[0]][names[1]])==int:
+                            allparams[names[0]][names[1]]=int(words[1])
+                        if type(allparams[names[0]][names[1]])==bool:
+                            if words[1]=='True':
+                                allparams[names[0]][names[1]]=True
+                            else:
+                                allparams[names[0]][names[1]]=False
     return allparams
 
 def WriteSettings(filename,allparams,columns=None):

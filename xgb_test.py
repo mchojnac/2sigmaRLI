@@ -59,7 +59,7 @@ def InitSettings():
     others["num_rounds"]=30
     others["withrest"]=True
     others["addlabelsasint"]=False
-    others["clean_street_building_ids"]=False
+    others["clean_street_building_ids"]=0
     alllparams=dict()
     alllparams['xgb']=param
     alllparams['maxstat']=maxstat
@@ -165,13 +165,13 @@ def transform_data(X,global_prob,feature_transform):
     X['created_wd'] = ((X['created_weekday'] != 5) & (X['created_weekday'] != 6))
     X['created'] = X['created'].map(lambda x: float((x - dt.datetime(1899, 12, 30)).days) + (float((x - dt.datetime(1899, 12, 30)).seconds) / 86400))
 
-    if 'interest_level' in X.columns:
-        X['low'] = 0
-        X.loc[X['interest_level'] == 0, 'low'] = 1
-        X['medium'] = 0
-        X.loc[X['interest_level'] == 1, 'medium'] = 1
-        X['high'] = 0
-        X.loc[X['interest_level'] == 2, 'high'] = 1
+
+    X['low'] = 0
+    X.loc[X['interest_level'] == 0, 'low'] = 1
+    X['medium'] = 0
+    X.loc[X['interest_level'] == 1, 'medium'] = 1
+    X['high'] = 0
+    X.loc[X['interest_level'] == 2, 'high'] = 1
 
 
     X['pred0_low'] = global_prob[0]
@@ -180,7 +180,6 @@ def transform_data(X,global_prob,feature_transform):
 
 
     return X
-
 
 
 def remove_columns(X,columns):
@@ -214,27 +213,29 @@ def LoadData(filename,settings):
     X_test = transform_data(X_test,global_prob,feature_transform)
 
 
-    if settings['others']["clean_street_building_ids"]:
+    if settings['others']["clean_street_building_ids"]>0:
+        print("Clean Street building 1")
         X_train=CreateSDN(X_train)
         trainBtoA,trainAtoB=GetDict(X_train)
-        print("step1")
         X_test=CreateSDN(X_test)
         testBtoA,testAtoB=GetDict(X_test)
-        print("step2")
-        X_train['building_id_new']=X_train['building_id']
-        X_train['street_address_new_new']=X_train['street_address_new']
-        X_test['building_id_new']=X_test['building_id']
-        X_test['street_address_new_new']=X_test['street_address_new']
-        X_train=CleanIDstreet(X_train,trainBtoA,trainAtoB)
-        X_train=CleanIDstreet(X_train,testBtoA,testAtoB)
-        print("step3")
-        X_test=CleanIDstreet(X_test,trainBtoA,trainAtoB)
-        X_test=CleanIDstreet(X_test,testBtoA,testAtoB)
-        print("step4")
-        X_train['building_id']=X_train['building_id_new']
-        X_test['building_id']=X_test['building_id_new']
-        X_test['street_address']=X_test['street_address_new_new']
-        X_test['street_address']=X_test['street_address_new_new']
+        if settings['others']["clean_street_building_ids"]>1:
+            print("Clean Street building 2")
+            X_train['building_id_new']=X_train['building_id']
+            X_train['street_address_new_new']=X_train['street_address_new']
+            X_test['building_id_new']=X_test['building_id']
+            X_test['street_address_new_new']=X_test['street_address_new']
+            X_train=CleanIDstreet(X_train,trainBtoA,trainAtoB)
+            X_train=CleanIDstreet(X_train,testBtoA,testAtoB)
+            X_test=CleanIDstreet(X_test,trainBtoA,trainAtoB)
+            X_test=CleanIDstreet(X_test,testBtoA,testAtoB)
+            X_train['building_id']=X_train['building_id_new']
+            X_test['building_id']=X_test['building_id_new']
+            X_train['street_address']=X_train['street_address_new_new']
+            X_test['street_address']=X_test['street_address_new_new']
+        else:
+            X_train['street_address']=X_train['street_address_new']
+            X_test['street_address']=X_test['street_address_new']
 
     print("Normalizing high cordiality data...")
     for i in ['manager_id','street_address','building_id']:
@@ -254,13 +255,11 @@ def LoadData(filename,settings):
             categorical_average(X_train,X_test,i, "low", "pred0_low", i + "_mean_low")
             categorical_average(X_train,X_test,i, "medium", "pred0_medium", i + "_mean_medium")
             categorical_average(X_train,X_test,i, "high", "pred0_high", i + "_mean_high")
-        else:
-            continue
         if settings['others']['addlabelsasint']:
             encoder = LabelEncoder()
             encoder.fit(list(X_train[i]) + list(X_test[i]))
-            X_train[i] = encoder.transform(X_train[i].ravel())
-            X_test[i] = encoder.transform(X_test[i].ravel())
+            X_train["{}_label".format(i)] = encoder.transform(X_train[i].ravel())
+            X_test["{}_label".format(i)] = encoder.transform(X_test[i].ravel())
     return X_train,X_test
 
 
@@ -271,7 +270,7 @@ def RunXGB(X_train,X_test,settings,filename,timestamp):
     remove_columns(X_train,settings['columns_for_remove'])
     xgtrain = xgb.DMatrix(X_train, label=y)
     results=True
-    if 'interest_level' in X_test.columns:
+    if filename!="":
         results=False
         ytest=X_test['interest_level'].ravel()
         remove_columns(X_test,settings['columns_for_remove'])

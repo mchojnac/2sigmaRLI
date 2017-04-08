@@ -415,30 +415,71 @@ def CreateSDN(df_train):
     df_train['street_address_new'] = df_train["street_address_new"].apply(lambda x: x.replace(" boulevard "," "))
     return df_train
 
-def GetDict(test):
-    k=dict()
-    p=dict()
-    for i in test["building_id"].unique():
-        tmp=test.loc[test["building_id"]==i]
+def GetDict(train,test):
+    buildindg_id_to_street=dict()
+    address_to_building_id=dict()
+    testb=set(test["building_id"].unique())
+    trainb=set(train["building_id"].unique())
+    allbid=testb.union(trainb)
+    allbid.remove("0")
+    n1=0
+    for i in allbid:
+        tmptest=test.loc[test["building_id"]==i]
+        tmptrain=train.loc[train["building_id"]==i]
         #print("{} {}".format(len(tmp),len(tmp['street_address_new'].unique())))
-        tmplen=[len(j) if j!=' st' else 999 for j in tmp['street_address_new'].unique()]
-        value=tmp['street_address_new'].unique()[tmplen.index(min(tmplen))]
-        #m = re.search("[a-z]", value)
+        santest=set(tmptest['street_address_new'].unique())
+        santrain=set(tmptrain['street_address_new'].unique())
+        tmp=santest.union(santrain)
+        if " st" in tmp:
+            tmp.remove(" st")
+        tmplen=[len(j) for j in tmp]
+        tmpstr=[j for j in tmp]
+        value=tmpstr[tmplen.index(min(tmplen))]
         m=value.find(" ")
-        p[value]=i
-        k[i]=value[m+1:]
+        if value[:m].isnumeric()==False:
+            m=-1
+        for j in tmp:
+            address_to_building_id[j]=i
+        buildindg_id_to_street[i]=value[m+1:]
+        for j in test.index[test["building_id"]==i]:
+            test['street_address'].values[j]=value[m+1:]
+            test['street_address_new'].values[j]=value
+        for j in train.index[train["building_id"]==i]:
+            train['street_address'].values[j]=value[m+1:]
+            train['street_address_new'].values[j]=value
+    return buildindg_id_to_street,address_to_building_id,train,test
 
-    return k,p
+def CleanStreet(df,buildindg_id_to_street):
+    for i in range(len(df)):
+        if df['building_id_new'].values[i]!='0':
+            if df['building_id_new'].values[i] in buildindg_id_to_street.keys():
+                df['street_address_new_new'].values[i]=buildindg_id_to_street[df['building_id_new'].values[i]]
+        else:
+            value=df['street_address_new'].values[i]
+            m=value.find(" ")
+            if value[:m].isnumeric()==False:
+                m=-1
+            df['street_address_new_new'].values[i]=value[m+1:]
 
-def CleanIDstreet(df_train,train,train2):
-    for i in range(len(df_train)):
-        #if df_train['building_id'].values[i]=='0':
-        if df_train['street_address_new'].values[i] in train2.keys():
-            df_train['building_id_new'].values[i]=train2[df_train['street_address_new'].values[i]]
-        if df_train['building_id_new'].values[i]!='0':
-            if df_train['building_id_new'].values[i] in train.keys():
-                df_train['street_address_new_new'].values[i]=train[df_train['building_id_new'].values[i]]
-    return  df_train
+    return  df
+def CleanBuildingID(df,address_to_building_id):
+    for i in range(len(df)):
+        if df['street_address_new'].values[i] in address_to_building_id.keys():
+            df['building_id_new'].values[i]=address_to_building_id[df['street_address_new'].values[i]]
+    return  df
+
+def FillMissingID(train,test):
+    tmptest=test.loc[test["building_id"]=='0']
+    tmptrain=train.loc[train["building_id"]=='0']
+    santest=set(tmptest['street_address_new'].unique())
+    santrain=set(tmptrain['street_address_new'].unique())
+    tmp=santest.union(santrain)
+    for (index,i) in enumerate(tmp):
+        for j in test.index[(test["building_id"]=='0')&(test["street_address_new"]==i)]:
+            test["building_id"].values[j]="Id_{}".format(index)
+        for j in train.index[(train["building_id"]=='0') & (train["street_address_new"]==i)]:
+            train["building_id"].values[j]="Id_{}".format(index)
+    return train,test
 
 def AddColumns(train,labels,column):
     for il,label in enumerate(labels):

@@ -228,7 +228,7 @@ def transform_data(X,global_prob,feature_transform,flagtrain=True):
     for i in mergedict.keys():
         X1=mergecolumns(X1,mergedict[i],i)
     if flagtrain==True:
-        X1=RemoveLowSatColumns(X1,0.005)
+        X1=RemoveLowSatColumns(X1,0.001)
 
     X = pd.concat([X.reset_index(), X1.reset_index()], axis = 1)
     del X['index']

@@ -217,7 +217,7 @@ def LoadData(filename,settings):
         print("Clean Street building 1")
         X_train=CreateSDN(X_train)
         X_test=CreateSDN(X_test)
-        buildindg_id_to_street,address_to_building_id,X_train,X_test=GetDict(X_train,X_test)
+        building_id_to_street,address_to_building_id,X_train,X_test=GetDict(X_train,X_test)
 
         if settings['others']["clean_street_building_ids"]>1:
             print("Clean Street building 2")
@@ -228,16 +228,17 @@ def LoadData(filename,settings):
             if settings['others']["clean_street_building_ids"]==2:
                 X_train=CleanBuildingID(X_train,address_to_building_id)
                 X_test=CleanBuildingID(X_test,address_to_building_id)
-                X_train,X_test=FillMissingID(X_train,X_test)
+                #X_train,X_test=FillMissingID(X_train,X_test)
             if settings['others']["clean_street_building_ids"]==3:
-                X_train=CleanStreet(X_train,buildindg_id_to_street)
-                X_test=CleanStreet(X_test,buildindg_id_to_street)
+                X_train=CleanStreet(X_train,building_id_to_street)
+                X_test=CleanStreet(X_test,building_id_to_street)
             if settings['others']["clean_street_building_ids"]>3:
+                print("Clean Street building 4")
                 X_train=CleanBuildingID(X_train,address_to_building_id)
                 X_test=CleanBuildingID(X_test,address_to_building_id)
-                X_train=CleanStreet(X_train,buildindg_id_to_street)
-                X_test=CleanStreet(X_test,buildindg_id_to_street)
-                X_train,X_test=FillMissingID(X_train,X_test)
+                X_train=CleanStreet(X_train,building_id_to_street)
+                X_test=CleanStreet(X_test,building_id_to_street)
+                #X_train,X_test=FillMissingID(X_train,X_test)
             X_train['building_id']=X_train['building_id_new']
             X_test['building_id']=X_test['building_id_new']
             X_train['street_address']=X_train['street_address_new_new']
@@ -247,6 +248,7 @@ def LoadData(filename,settings):
     for i in ['manager_id','street_address','building_id']:
         flag=settings['howtouseID'][i]
         if flag==1:
+            final,labels=GetFractionsforIDStreet(X_train,i,settings['maxstat'][i],settings['others']["withrest"])
             AddColumns(X_train,labels,i)
             AddColumns(X_test,labels,i)
         elif flag==0:

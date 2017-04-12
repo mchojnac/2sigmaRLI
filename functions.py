@@ -243,6 +243,8 @@ def GetStatofSMIinTrain (columnname,train_df,cut=120):
 def LoadTrain(name="./train.json"):
     train_df = pd.read_json(name)
     train_df.head()
+    train_df.reset_index(inplace=True)
+    del train_df["index"]
     maping_intrest={'low':0,'medium':1,'high':2}
     train_df['interest_level'] = train_df['interest_level'].map(maping_intrest)
     train_df['features'] = train_df["features"].apply(lambda x: ["_".join(i.lower().split(" ")) for i in x])
@@ -254,6 +256,8 @@ def LoadTrain(name="./train.json"):
     return train_df
 def LoadTest(name="./test.json"):
     df_test= pd.read_json(name)
+    df_test.reset_index(inplace=True)
+    del df_test["index"]
     if "interest_level" in df_test.columns:
         maping_intrest={'low':0,'medium':1,'high':2}
         df_test['interest_level'] =df_test['interest_level'].map(maping_intrest)
@@ -416,7 +420,7 @@ def CreateSDN(df_train):
     return df_train
 
 def GetDict(train,test):
-    buildindg_id_to_street=dict()
+    building_id_to_street=dict()
     address_to_building_id=dict()
     testb=set(test["building_id"].unique())
     trainb=set(train["building_id"].unique())
@@ -440,20 +444,59 @@ def GetDict(train,test):
             m=-1
         for j in tmp:
             address_to_building_id[j]=i
-        buildindg_id_to_street[i]=value[m+1:]
+        building_id_to_street[i]=value[m+1:]
         for j in test.index[test["building_id"]==i]:
             test['street_address'].values[j]=value[m+1:]
             test['street_address_new'].values[j]=value
         for j in train.index[train["building_id"]==i]:
             train['street_address'].values[j]=value[m+1:]
             train['street_address_new'].values[j]=value
-    return buildindg_id_to_street,address_to_building_id,train,test
+    return building_id_to_street,address_to_building_id,train,test
 
-def CleanStreet(df,buildindg_id_to_street):
+def GetDict(train,test):
+    building_id_to_street=dict()
+    address_to_building_id=dict()
+    dict_weights=dict()
+    testb=set(test["building_id"].unique())
+    trainb=set(train["building_id"].unique())
+    allbid=testb.union(trainb)
+    allbid.remove("0")
+    for i in allbid:
+        tmptest=test.loc[test["building_id"]==i]
+        tmptrain=train.loc[train["building_id"]==i]
+        santest=set(tmptest['street_address_new'].unique())
+        santrain=set(tmptrain['street_address_new'].unique())
+        tmp=santest.union(santrain)
+        tmplen=[len(tmptest.loc[tmptest["street_address_new"]==j])+len(tmptrain.loc[tmptrain["street_address_new"]==j]) for j in tmp]
+        tmpstr=[j for j in tmp]
+        weight=max(tmplen)
+        value=tmpstr[tmplen.index(weight)]
+        m=value.find(" ")
+        if value[:m].isnumeric()==False:
+            m=-1
+        if  weight>100:
+            if value in address_to_building_id.keys():
+                if weight>dict_weights[value]:
+                    address_to_building_id[value]=i
+                    dict_weights[value]=weight
+            else:
+                address_to_building_id[value]=i
+                dict_weights[value]=weight
+        building_id_to_street[i]=value[m+1:]
+        for j in test.index[test["building_id"]==i]:
+            test['street_address'].values[j]=value[m+1:]
+            test['street_address_new'].values[j]=value
+        for j in train.index[train["building_id"]==i]:
+            train['street_address'].values[j]=value[m+1:]
+            train['street_address_new'].values[j]=value
+    return building_id_to_street,address_to_building_id,train,test
+
+
+def CleanStreet(df,building_id_to_street):
     for i in range(len(df)):
         if df['building_id_new'].values[i]!='0':
-            if df['building_id_new'].values[i] in buildindg_id_to_street.keys():
-                df['street_address_new_new'].values[i]=buildindg_id_to_street[df['building_id_new'].values[i]]
+            if df['building_id_new'].values[i] in building_id_to_street.keys():
+                df['street_address_new_new'].values[i]=building_id_to_street[df['building_id_new'].values[i]]
         else:
             value=df['street_address_new'].values[i]
             m=value.find(" ")
@@ -469,16 +512,16 @@ def CleanBuildingID(df,address_to_building_id):
     return  df
 
 def FillMissingID(train,test):
-    tmptest=test.loc[test["building_id"]=='0']
-    tmptrain=train.loc[train["building_id"]=='0']
+    tmptest=test.loc[test["building_id_new"]=='0']
+    tmptrain=train.loc[train["building_id_new"]=='0']
     santest=set(tmptest['street_address_new'].unique())
     santrain=set(tmptrain['street_address_new'].unique())
     tmp=santest.union(santrain)
     for (index,i) in enumerate(tmp):
-        for j in test.index[(test["building_id"]=='0')&(test["street_address_new"]==i)]:
-            test["building_id"].values[j]="Id_{}".format(index)
-        for j in train.index[(train["building_id"]=='0') & (train["street_address_new"]==i)]:
-            train["building_id"].values[j]="Id_{}".format(index)
+        for j in test.index[(test["building_id_new"]=='0')&(test["street_address_new"]==i)]:
+            test["building_id_new"].values[j]="Id_{}".format(index)
+        for j in train.index[(train["building_id_new"]=='0') & (train["street_address_new"]==i)]:
+            train["building_id_new"].values[j]="Id_{}".format(index)
     return train,test
 
 def AddColumns(train,labels,column):

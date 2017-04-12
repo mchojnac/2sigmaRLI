@@ -137,13 +137,99 @@ def categorical_average(df_train,df_test,variable, y, pred_0, feature_name):
     df_test.loc[:, feature_name] = calculate_average(sub1, sub2)
 
 
-def transform_data(X,global_prob,feature_transform):
+def transform_data(X,global_prob,feature_transform,flagtrain=True):
     #add features
+    mergedict=dict()
+
+    mergedict["Doorman"]=['24_hour_doorman','24hr_doorman','7_doorman','7_doorman_concierge','_doorman','_doorman_','doorman',
+     'four_hour_concierge_and_doorman','ft_doorman','hour_concierge_and_doorman','hour_doorman','time_doorman',
+       '24_hour_concierge','7_concierge','concierge','concierge_service']
+    mergedict["Laundry"]=['_laundry','laundry','laundry_','laundry_in_building','laundry_in_unit','laundry_on_every_floor',
+    'laundry_on_floor','laundry_room','private_laundry_room_on_every_floor','site_laundry','valet_laundry']
+
+    mergedict["Pets"]=['_pets_ok_','all_pets_ok','no_pets','pets','pets_','pets_allowed',
+    'pets_ok','pets_on_approval','dogs_allowed','_cats','_cats_ok_','cats_allowed']
+
+    mergedict["Nofee"]=["_diamond_no_fee_deal","_no_fee","fee","low_fee",
+                   "no_broker_fee","no_fee","one_month_fee","reduced_fee"]
+
+    mergedict["Balcony"]=["balcony","common_balcony","private_balcony"]
+
+    mergedict["HFloor"]=["hardwood_floor","hardwood_flooring","hardwood_floors","hardwood","oak_floors"]
+
+    mergedict["Dishwasher"]=["_dishwasher","_dishwasher_","dishwasher"]
+
+    mergedict["Elevator"]=["elevator","elevator_"]
+
+    mergedict["PreWar"]=["pre","pre_war","prewar"]
+    mergedict["PostWar"]=["post","pre_war","prewar"]
+
+    mergedict["Fitness"]=["art_cardio_and_fitness_club","art_fitness_center","equipped_club_fitness_center",
+    "fitness","fitness_center","fitness_facility","fitness_room","gym"]
+
+    mergedict["Outdoor"]=["common_outdoor_space","outdoor","outdoor_areas","outdoor_entertainment_space",
+    "outdoor_roof_deck_overlooking_new_york_harbor_and_battery_park","outdoor_space"
+    "outdoor_terrace","private_outdoor_space"]
+
+    mergedict["Dining"]=["dining","dining_area","dining_room"]
+
+    mergedict["RoofTerrace"]=["_roof_deck_","_scenic_roof_deck_","common_roof_deck",
+    "outdoor_roof_deck_overlooking_new_york_harbor_and_battery_park",
+    "roof","roof_access","roof_deck",
+    "roof_deck_with_grills","roof_decks","roof_grilling_area","roofdeck","rooftop"
+    "rooftop_deck","common_terrace","outdoor_terrace",
+    "rooftop_terrace","terrace","terraces_","deck",
+    "expansive_sundeck","sundeck"]
+
+
+    mergedict["PRoofTerrace"]=["private_roof_access","private_roof_deck","private_roofdeck",
+                               "_private_terrace_","private_terrace","private_deck"]
+
+    mergedict["Pool"]=["indoor_swimming_pool","swimming_pool","indoor_pool","pool"]
+
+    mergedict["ParkingGarage"]=["common_parking","garage_parking","parking"
+    ,"parking_available","parking_garage","parking_space",
+    "private_parking","site_parking","site_parking_available"
+    "site_parking_lot","underground_parking","valet_parking",
+    "full_service_garage","garage","site_attended_garage","site_garage"]
+
+    mergedict["ParkingGarage"]=["_private_terrace_","private_terrace"]
+
+    mergedict["HSinternet"]=["high_speed_internet","high_speed_internet_available","speed_internet"]
+
+    mergedict["Wheelchair"]=["wheelchair_access","wheelchair_ramp"]
+
+    mergedict["Photos"]=["_photos","_photos_","actual_photos"]
+
+
+    mergedict["Garden"]=["common_garden","garden","gardening_area_with_rentable_plots","residents_garden","shared_garden"]
+
+    mergedict["PrivateGarden"]=["_private_garden_","private_garden"]
+
+    mergedict["Fireplace"]=["_fireplace_","burning_fireplace","deco_fireplace",
+    "decorative_fireplace","fireplace","fireplaces",
+    "working_fireplace"]
+
+    mergedict["Ceiling"]=["high_ceiling","high_ceilings"]
+
+
+    mergedict["Renovated"]=["_fully_renovated_","_gut_renovated_","fully_renovated","gut_renovated","newly_renovated","renovated"]
+    mergedict["Washer"]=["in_unit_washer_and_dryer","unit_washer","washer","washer_","washer_in_unit"]
+
+    mergedict["Lounge"]=["duplex_lounge","enclosed_private_lounge_with_magnificent_river_views","lounge","lounge_room","residents_lounge",
+    "tenant_lounge"]
+    mergedict["Patio"]=["patio","private_patio"]
+
     feat_sparse = feature_transform.transform(X["features"])
     vocabulary = feature_transform.vocabulary_
     del X['features']
     X1 = pd.DataFrame([ pd.Series(feat_sparse[i].toarray().ravel()) for i in np.arange(feat_sparse.shape[0]) ])
     X1.columns = list(sorted(vocabulary.keys()))
+    for i in mergedict.keys():
+        X1=mergecolumns(X1,mergedict[i],i)
+    if flagtrain==True:
+        X1=RemoveLowSatColumns(X1,0.005)
+
     X = pd.concat([X.reset_index(), X1.reset_index()], axis = 1)
     del X['index']
 
@@ -210,7 +296,7 @@ def LoadData(filename,settings):
     feature_transform.fit(list(X_train['features']) + list(X_test['features']))
     print("Starting transformations")
     X_train = transform_data(X_train,global_prob,feature_transform)
-    X_test = transform_data(X_test,global_prob,feature_transform)
+    X_test = transform_data(X_test,global_prob,feature_transform,False)
 
 
     if settings['others']["clean_street_building_ids"]>0:
@@ -333,5 +419,6 @@ if __name__ == '__main__':
     if settingsfilename!="default":
         allparams=ReadIn(settingsfilename,allparams)
     train,test=LoadData(filename,allparams)
+    test=RemoveUncommon(test,train)
     RunXGB(train,test,allparams,filename,timestamp)
     WriteSettings("./test/settings{}timestamp{}.txt".format(filename,timestamp),allparams,train.columns)

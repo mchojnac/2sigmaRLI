@@ -576,3 +576,30 @@ def WriteSettings(filename,allparams,columns=None):
             file_object.write(" {}".format(i))
         file_object.write("\n")
     file_object.close()
+
+def mergecolumns(df,tomerge,name):
+    update=list()
+    for i in tomerge:
+        if i in df.columns:
+            update.append(i)
+    if len(update)==0:
+        return df
+    df[name]=df[update].sum(axis=1)
+    for i in update:
+        del df[i]
+    return df
+
+def RemoveLowSatColumns(df,cut=0.01):
+    l=len(df)
+    if l<1:
+        return df
+    for i in df.columns:
+        if df[i].sum(0)/l<cut:
+            del df[i]
+    return df
+
+def RemoveUncommon(df1,df2):
+    for i in df1.columns:
+        if (i in df2.columns)==False:
+            del df1[i]
+    return df1   

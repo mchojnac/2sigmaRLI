@@ -60,6 +60,11 @@ def InitSettings():
     others["withrest"]=True
     others["addlabelsasint"]=False
     others["clean_street_building_ids"]=0
+    others["cut_on_cleaning_feauters"]=-1.0
+    others["cut_to_divide_on_building_id"]=-1
+    others["cut_lan_log_selection"]=0.0002
+    others['binsize']=-1.0
+
     alllparams=dict()
     alllparams['xgb']=param
     alllparams['maxstat']=maxstat
@@ -137,7 +142,7 @@ def categorical_average(df_train,df_test,variable, y, pred_0, feature_name):
     df_test.loc[:, feature_name] = calculate_average(sub1, sub2)
 
 
-def transform_data(X,global_prob,feature_transform,flagtrain=True):
+def transform_data(X,global_prob,feature_transform,flagtrain=True,cut=-1.0):
     #add features
     mergedict=dict()
 
@@ -225,10 +230,12 @@ def transform_data(X,global_prob,feature_transform,flagtrain=True):
     del X['features']
     X1 = pd.DataFrame([ pd.Series(feat_sparse[i].toarray().ravel()) for i in np.arange(feat_sparse.shape[0]) ])
     X1.columns = list(sorted(vocabulary.keys()))
-    for i in mergedict.keys():
-        X1=mergecolumns(X1,mergedict[i],i)
-    if flagtrain==True:
-        X1=RemoveLowSatColumns(X1,0.001)
+
+    if cut>0.0:
+        for i in mergedict.keys():
+            X1=mergecolumns(X1,mergedict[i],i)
+        if flagtrain==True:
+            X1=RemoveLowSatColumns(X1,cut)
 
     X = pd.concat([X.reset_index(), X1.reset_index()], axis = 1)
     del X['index']
@@ -279,7 +286,8 @@ def remove_columns(X,columns):
 def LoadData(filename,settings):
     X_train =LoadTrain("train{}.json".format(filename))
     X_test = LoadTest("test{}.json".format(filename))
-
+    X_train[['latitude','longitude']] = X_train[['latitude','longitude']].astype(float)
+    X_test[['latitude','longitude']] = X_test[['latitude','longitude']].astype(float)
     feature_transform = CountVectorizer(stop_words='english', max_features=settings['others']['countvectorizer_max_features'])
 
     train_size = len(X_train)
@@ -314,17 +322,21 @@ def LoadData(filename,settings):
             if settings['others']["clean_street_building_ids"]==2:
                 X_train=CleanBuildingID(X_train,address_to_building_id)
                 X_test=CleanBuildingID(X_test,address_to_building_id)
-                #X_train,X_test=FillMissingID(X_train,X_test)
+                X_train,X_test=FillMissingID(X_train,X_test)
             if settings['others']["clean_street_building_ids"]==3:
                 X_train=CleanStreet(X_train,building_id_to_street)
                 X_test=CleanStreet(X_test,building_id_to_street)
-            if settings['others']["clean_street_building_ids"]>3:
+            if settings['others']["clean_street_building_ids"]==4:
                 print("Clean Street building 4")
                 X_train=CleanBuildingID(X_train,address_to_building_id)
                 X_test=CleanBuildingID(X_test,address_to_building_id)
                 X_train=CleanStreet(X_train,building_id_to_street)
                 X_test=CleanStreet(X_test,building_id_to_street)
-                #X_train,X_test=FillMissingID(X_train,X_test)
+                X_train,X_test=FillMissingID(X_train,X_test);
+            if settings['others']["clean_street_building_ids"]==5:
+                print("new way")
+                X_train,X_test=NewWay(X_train,X_test,settings['others']["cut_lan_log_selection"])
+                X_train,X_test=FillMissingIDNew(X_train,X_test,settings['others']["cut_lan_log_selection"])
             X_train['building_id']=X_train['building_id_new']
             X_test['building_id']=X_test['building_id_new']
             X_train['street_address']=X_train['street_address_new_new']
@@ -354,6 +366,12 @@ def LoadData(filename,settings):
             encoder.fit(list(X_train[i]) + list(X_test[i]))
             X_train["{}_label".format(i)] = encoder.transform(X_train[i].ravel())
             X_test["{}_label".format(i)] = encoder.transform(X_test[i].ravel())
+    if settings['others']['binsize']>0.0:
+        X_train,Xtest=MakeBinnig(X_train,X_test,'longitude',settings['others']['binsize'])
+        X_train,Xtest=MakeBinnig(X_train,X_test,'latitude',settings['others']['binsize'])
+
+    X_train=AddColumnEmailPhone(X_train)
+    X_test=AddColumnEmailPhone(X_test)
     return X_train,X_test
 
 
@@ -420,5 +438,20 @@ if __name__ == '__main__':
         allparams=ReadIn(settingsfilename,allparams)
     train,test=LoadData(filename,allparams)
     test=RemoveUncommon(test,train)
-    RunXGB(train,test,allparams,filename,timestamp)
-    WriteSettings("./test/settings{}timestamp{}.txt".format(filename,timestamp),allparams,train.columns)
+    if allparams["others"]["cut_to_divide_on_building_id"]>0:
+        train1,train2,test1,test2=DivideDF(train,test,"building_id",allparams["others"]["cut_to_divide_on_building_id"])
+        filename1=filename+str(len(test1))
+        filename2=filename+str(len(test2))
+        RunXGB(train1,test1,allparams,filename1+"part1",timestamp)
+        WriteSettings("./test/settings{}part1timestamp{}.txt".format(filename1,timestamp),allparams,train1.columns)
+        columnswithbid=list()
+        for i in train1.columns:
+            if i.find("building_id")>-1:
+                columnswithbid.append(i)
+        remove_columns(train2,columnswithbid)
+        remove_columns(test2,columnswithbid)
+        RunXGB(train2,test2,allparams,filename2+"part2",timestamp)
+        WriteSettings("./test/settings{}part2timestamp{}.txt".format(filename2,timestamp),allparams,train2.columns)
+    else:
+        RunXGB(train,test,allparams,filename,timestamp)
+        WriteSettings("./test/settings{}timestamp{}.txt".format(filename,timestamp),allparams,train.columns)

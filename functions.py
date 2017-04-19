@@ -602,4 +602,82 @@ def RemoveUncommon(df1,df2):
     for i in df1.columns:
         if (i in df2.columns)==False:
             del df1[i]
-    return df1   
+    return df1
+
+def DivideDF(train,test,column,cut):
+    testb=set(test[column].unique())
+    trainb=set(train[column].unique())
+    allbid=testb.union(trainb)
+    allbid.remove('0')
+    part1=list()
+    part2=list()
+    part2.append("0")
+    for i in allbid:
+        if len(train[train[column]==i])>cut:
+             part1.append(i)
+        else:
+             part2.append(i)
+    train1=train[train["building_id"].isin(part1)]
+    train2=train[train["building_id"].isin(part2)]
+    test1=test[test["building_id"].isin(part1)]
+    test2=test[test["building_id"].isin(part2)]
+    return train1,train2,test1,test2
+
+def NewWay(train,test,cut=0.0002):
+    df_all=pd.concat([train[["building_id",'latitude','longitude']],test[["building_id",'latitude','longitude']]])
+    df_all=df_all.drop(df_all.index[df_all['building_id']=="0"])
+    means=df_all.groupby("building_id", as_index = False).mean()
+    train['building_id_new']="0"
+    test['building_id_new']="0"
+    for i in range(len(means)):
+        buid=means['building_id'].values[i]
+        la=means['latitude'].values[i]
+        lo=means['longitude'].values[i]
+        tmptest=test[test['building_id']==buid][['latitude','longitude']]
+        tmptrain=train[train['building_id']==buid][['latitude','longitude']]
+        tmp=pd.concat([tmptest,tmptrain],ignore_index=True)
+        tmp['total']=abs(tmp['longitude']-lo)+abs(tmp['latitude']-la)
+        idxmin=tmp['total'].idxmin()
+        la=tmp['latitude'][idxmin]
+        lo=tmp['longitude'][idxmin]
+        for j in train.index[(abs(train['latitude']-la)<cut)&(abs(train['longitude']-lo)<cut)]:
+            train['building_id_new'].values[j]=buid
+        for j in test.index[(abs(test['latitude']-la)<cut)&(abs(test['longitude']-lo)<cut)]:
+            test['building_id_new'].values[j]=buid
+        #del train['tmplo']
+    return train,test
+
+def FillMissingIDNew(train,test,cut=0.0002):
+    N=0
+    while (len(train[train['building_id_new']=="0"])+len(test[test['building_id_new']=="0"]))>0:
+        lo=0.0
+        la=0.0
+        if len(train[train['building_id_new']=="0"])>0:
+            index=train.index[train['building_id_new']=="0"][0]
+            lo=train['longitude'].values[index]
+            la=train['latitude'].values[index]
+        else:
+            index=test.index[test['building_id_new']=="0"][0]
+            lo=test['longitude'].values[index]
+            la=test['latitude'].values[index]
+        for j in train.index[(abs(train['latitude']-la)<cut)&(abs(train['longitude']-lo)<cut)]:
+            train['building_id_new'].values[j]="Id_{}".format(N)
+        for j in test.index[(abs(test['latitude']-la)<cut)&(abs(test['longitude']-lo)<cut)]:
+            test['building_id_new'].values[j]="Id_{}".format(N)
+        N=N+1
+    return train,test
+
+def MakeBinnig(train,test,column,binsize=0.001):
+    tmp=pd.concat([test[column],train[column]],ignore_index=True)
+    mean=tmp.mean()
+    train["{}_bins".format(column)]=train[column].apply(lambda x:int((x-mean)/binsize))
+    test["{}_bins".format(column)]=test[column].apply(lambda x:int((x-mean)/binsize))
+    return train ,test
+def AddColumnEmailPhone(df):
+    df['phone_email']=0
+    for j in range(len(df)):
+        i=df['description'].values[j]
+        i=i.lower()
+        if i.find('call')>-1 or i.find('kagglemanager@renthop.com')>-1:
+            df['phone_email'].values[j]=1
+    return df

@@ -302,6 +302,7 @@ def CompareTrainTest(train,test,title,limits):
 
 def Std(df,columns):
     for i in columns:
+        df=Cleanoutlayers(df,i)
         mean=df[i].mean();
         std=df[i].std()+1e-8
         df[i]=(df[i]-mean)/std
@@ -858,7 +859,12 @@ def transform_data(X,global_prob,feature_transform,flagtrain=True,cut=-1.0):
     X["num_description_words"] = X["description"].apply(lambda x: len(x.split(" ")))
     X['price_per_bed'] = X['price'] / X['bedrooms']
     X['price_per_room'] = X['price'] / (X['bathrooms'] + X['bedrooms'] )
-
+    maxperroom=max(X[(X['bedrooms']!=0)|(X['bathrooms']!=0)]['price_per_room'])
+    maxperbed=max(X[X['bedrooms']!=0]['price_per_room'])
+    for i in X.index[(X['bedrooms']==0)&(X['bathrooms']==0)]:
+        X['price_per_room'].values[i]=maxperroom
+    for i in X.index[(X['bedrooms']==0)]:
+        X['price_per_bed'].values[i]=maxperbed
     X["created"] = pd.to_datetime(X["created"])
     X["created_year"] = X["created"].dt.year
     X["created_month"] = X["created"].dt.month
@@ -867,8 +873,10 @@ def transform_data(X,global_prob,feature_transform,flagtrain=True,cut=-1.0):
     X['created_weekday'] = X['created'].dt.weekday
     X['created_week'] = X['created'].dt.week
     X['created_quarter'] = X['created'].dt.quarter
-    X['created_weekend'] = ((X['created_weekday'] == 5) & (X['created_weekday'] == 6))
-    X['created_wd'] = ((X['created_weekday'] != 5) & (X['created_weekday'] != 6))
+    #X['created_weekend'] = ((X['created_weekday'] == 5) & (X['created_weekday'] == 6))
+    #X['created_wd'] = ((X['created_weekday'] != 5) & (X['created_weekday'] != 6))
+    X["created_weekend"] = X['created_weekday'].apply(lambda x: 1 if ((x==5) | (x==6)) else 0)
+    X["created_wd"] = X['created_weekday'].apply(lambda x: 1 if ((x!=5) & (x!=6)) else 0)
     X['created'] = X['created'].map(lambda x: float((x - dt.datetime(1899, 12, 30)).days) + (float((x - dt.datetime(1899, 12, 30)).seconds) / 86400))
 
 
@@ -921,8 +929,8 @@ def LoadData(filename,settings):
 
     feature_transform.fit(list(X_train['features']) + list(X_test['features']))
     print("Starting transformations")
-    X_train = transform_data(X_train,global_prob,feature_transform)
-    X_test = transform_data(X_test,global_prob,feature_transform,False)
+    X_train = transform_data(X_train,global_prob,feature_transform,True,settings['others']["cut_on_cleaning_feauters"])
+    X_test = transform_data(X_test,global_prob,feature_transform,False,settings['others']["cut_on_cleaning_feauters"])
 
 
     if settings['others']["clean_street_building_ids"]>0:
@@ -1003,11 +1011,20 @@ def LoadImgData():
 
     image_date["img_date"]                  = pd.to_datetime(image_date["time_stamp"], unit="s")
     image_date["img_days_passed"]           = (image_date["img_date"].max() - image_date["img_date"]).astype("timedelta64[D]").astype(int)
-    image_date["img_date_month"]            = image_date["img_date"].dt.month
-    image_date["img_date_week"]             = image_date["img_date"].dt.week
-    image_date["img_date_day"]              = image_date["img_date"].dt.day
-    image_date["img_date_dayofweek"]        = image_date["img_date"].dt.dayofweek
-    image_date["img_date_dayofyear"]        = image_date["img_date"].dt.dayofyear
-    image_date["img_date_hour"]             = image_date["img_date"].dt.hour
-    image_date["img_date_monthBeginMidEnd"] = image_date["img_date_day"].apply(lambda x: 1 if x<10 else 2 if x<20 else 3)
+    image_date["img_month"]            = image_date["img_date"].dt.month
+    image_date["img_week"]             = image_date["img_date"].dt.week
+    image_date["img_day"]              = image_date["img_date"].dt.day
+    image_date["img_weekday"]        = image_date["img_date"].dt.dayofweek
+    image_date["img_dayofyear"]        = image_date["img_date"].dt.dayofyear
+    image_date["img_hour"]             = image_date["img_date"].dt.hour
+    image_date["img_monthBeginMidEnd"] = image_date["img_day"].apply(lambda x: 1 if x<10 else 2 if x<20 else 3)
     return image_date
+def Cleanoutlayers(df,column):
+    mean=df[column].mean()
+    std=df[column].std()
+    for i in range(len(df)):
+        if df[column].values[i]<mean-5*std:
+            df[column].values[i]=mean-5*std
+        if df[column].values[i]>mean+5*std:
+            df[column].values[i]=mean+5*std
+    return df

@@ -259,6 +259,7 @@ def LoadTrain(name="./train.json"):
     train_df['time'] = train_df["time"].apply(lambda x:(x-start))
     train_df['time'] = train_df["time"].astype(int)
     return train_df
+
 def LoadTest(name="./test.json"):
     df_test= pd.read_json(name)
     df_test.reset_index(inplace=True)
@@ -300,12 +301,14 @@ def CompareTrainTest(train,test,title,limits):
             results.append(0.0)
     plt.plot(bins,results)
 
-def Std(df,columns):
+def Std(df1,df2,columns):
     for i in columns:
-        df=Cleanoutlayers(df,i)
-        mean=df[i].mean();
-        std=df[i].std()+1e-8
-        df[i]=(df[i]-mean)/std
+        df1,df2=Cleanoutlayers(df1,df2,i)
+        tmp=pd.concat([df1[i],df2[i]])
+        mean=tmp.mean()
+        std=tmp.std()+1e-8
+        df1[i]=(df1[i]-mean)/std
+        df2[i]=(df2[i]-mean)/std
     return
 
 def AddColumnsLMHIDStreet(df_train,column,values) :
@@ -998,6 +1001,17 @@ def LoadData(filename,settings):
 
     X_train=AddColumnEmailPhone(X_train)
     X_test=AddColumnEmailPhone(X_test)
+    if len(settings['others']['addNNresults'])>0:
+        if len(settings['others']['diraddNNresults'])>0:
+            trainNN= pd.read_csv("{}/train{}.csv".format(settings['others']['diraddNNresults'],settings['others']['addNNresults']))
+            testNN= pd.read_csv("{}/test{}.csv".format(settings['others']['diraddNNresults'],settings['others']['addNNresults']))
+        else:
+            trainNN= pd.read_csv("./testtf/traintf{}.csv".format(settings['others']['addNNresults']))
+            testNN= pd.read_csv("./testtf/testtf{}.csv".format(settings['others']['addNNresults']))
+        tmpNN=pd.concat([trainNN,testNN])
+        tmpNN.rename(columns={'high': 'NNhigh', 'medium': 'NNmedium',"low":"NNlow"}, inplace=True)
+        X_train = pd.merge(X_train, tmpNN, on="listing_id", how="left")
+        X_test = pd.merge(X_test, tmpNN, on="listing_id", how="left")
     return X_train,X_test
 
 def LoadImgData():
@@ -1019,12 +1033,21 @@ def LoadImgData():
     image_date["img_hour"]             = image_date["img_date"].dt.hour
     image_date["img_monthBeginMidEnd"] = image_date["img_day"].apply(lambda x: 1 if x<10 else 2 if x<20 else 3)
     return image_date
-def Cleanoutlayers(df,column):
-    mean=df[column].mean()
-    std=df[column].std()
-    for i in range(len(df)):
-        if df[column].values[i]<mean-5*std:
-            df[column].values[i]=mean-5*std
-        if df[column].values[i]>mean+5*std:
-            df[column].values[i]=mean+5*std
-    return df
+def Cleanoutlayers(df1,df2,column):
+    tmp=pd.concat([df1[column],df2[column]])
+    std=10.0
+    stdnew=1.0
+    N=0
+    while stdnew<std*0.95:
+        N=N+1
+        mean=tmp.mean()
+        std=tmp.std()+1e-8
+        for df in [df1,df2]:
+            for i in range(len(df)):
+                if df[column].values[i]<mean-5*std:
+                    df[column].values[i]=mean-5*std
+                if df[column].values[i]>mean+5*std:
+                    df[column].values[i]=mean+5*std
+        tmp=pd.concat([df1[column],df2[column]])
+        stdnew=tmp.std()+1e-8
+    return df1,df2

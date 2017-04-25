@@ -64,7 +64,8 @@ def InitSettings():
     others["cut_to_divide_on_building_id"]=-1
     others["cut_lan_log_selection"]=0.0002
     others['binsize']=-1.0
-
+    others['addNNresults']=""
+    others['diraddNNresults']=""
     alllparams=dict()
     alllparams['xgb']=param
     alllparams['maxstat']=maxstat
@@ -119,7 +120,14 @@ def RunXGB(X_train,X_test,settings,filename,timestamp):
         out=pd.DataFrame({'train':logs['train']['mlogloss'],"test":logs['eval']['mlogloss']})
     out.to_csv("./test/logs{}timestamp{}.csv".format(filename,timestamp), index = False, header = True)
 
-
+    ids=X_train['listing_id'].ravel()
+    xgtrain = xgb.DMatrix(X_train)
+    preds = clf.predict(xgtrain)
+    sub = pd.DataFrame(data = {'listing_id': ids})
+    sub['low'] = preds[:, 0]
+    sub['medium'] = preds[:, 1]
+    sub['high'] = preds[:, 2]
+    sub.to_csv("./test/train{}timestamp{}.csv".format(filename,timestamp), index = False, header = True)
 
 
 if __name__ == '__main__':
